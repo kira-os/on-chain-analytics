@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>On-Chain Analytics | Kira OS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #000000;
+            --accent-cyan: #00D4FF;
+            --accent-blue: #3B82F6;
+            --accent-indigo: #6366F1;
+            --accent-teal: #14B8A6;
+            --text-primary: #FFFFFF;
+            --text-secondary: rgba(255, 255, 255, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        #shader-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.03;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 48px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            font-size: 20px;
+            box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
+        }
+
+        .brand-text h1 {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-text p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 100px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #10B981;
+        }
+
+        .live-indicator::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #10B981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            position: relative;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 28px;
+            transition: all 0.4s var(--ease-smooth);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-change {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .stat-change.positive {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10B981;
+        }
+
+        .stat-change.negative {
+            background: rgba(244, 63, 94, 0.1);
+            color: #F43F5E;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        /* Whale Section */
+        .whale-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 32px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .section-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .whale-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-indigo));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .view-all {
+            font-size: 14px;
+            color: var(--accent-cyan);
+            text-decoration: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .view-all:hover {
+            opacity: 0.7;
+        }
+
+        /* Whale List */
+        .whale-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .whale-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            animation: slideIn 0.4s ease forwards;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .whale-row:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: translateX(4px);
+        }
+
+        .rank {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(59, 130, 246, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .whale-address {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .whale-balance {
+            margin-left: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .whale-change {
+            width: 80px;
+            text-align: right;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        .whale-change.positive {
+            color: #10B981;
+        }
+
+        .whale-change.negative {
+            color: #F43F5E;
+        }
+
+        .whale-time {
+            width: 70px;
+            text-align: right;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Loading State */
+        .loading-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+        }
+
+        .loading-bar {
+            flex: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .loading-bar::after {
+            content: '';
+            display: block;
+            width: 30%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+            border-radius: 4px;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(300%); }
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 48px;
+            padding-top: 24px;
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        footer a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 20px; }
+            header { flex-direction: column; gap: 20px; align-items: flex-start; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .whale-row { flex-wrap: wrap; }
+            .whale-time { width: 100%; text-align: left; margin-top: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="shader-canvas"></canvas>
+    <div class="noise-overlay"></div>
+
+    <div class="container">
+        <header>
+            <div class="brand">
+                <div class="logo">A</div>
+                <div class="brand-text">
+                    <h1>On-Chain Analytics</h1>
+                    <p>Solana whale tracking and smart money flows</p>
+                </div>
+            </div>
+            <div class="live-indicator">Live</div>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Whales Tracked</span>
+                    <span class="stat-change positive">+12</span>
+                </div>
+                <div class="stat-value">1,247</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Smart Money Flow</span>
+                    <span class="stat-change positive">+8.3%</span>
+                </div>
+                <div class="stat-value">$2.4M</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Active Wallets</span>
+                    <span class="stat-change positive">+5.1%</span>
+                </div>
+                <div class="stat-value">45.2K</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Avg Position</span>
+                    <span class="stat-change negative">-2.4%</span>
+                </div>
+                <div class="stat-value">$18.5K</div>
+            </div>
+        </div>
+
+        <div class="whale-section">
+            <div class="section-header">
+                <h2><span class="whale-icon">W</span> Top Whales</h2>
+                <a href="#" class="view-all">View All</a>
+            </div>
+
+            <div class="whale-list" id="whale-list">
+                <div class="loading-row">
+                    <div class="loading-bar"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <span>Autonomous analytics by Kira OS</span>
+            <div>
+                <a href="https://github.com/kira-os/on-chain-analytics">Source</a>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // WebGL Shader Background - Blue/Cyan
+        const canvas = document.getElementById('shader-canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+        if (gl) {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+
+            const vertexShaderSource = `
+                attribute vec2 position;
+                void main() {
+                    gl_Position = vec4(position, 0.0, 1.0);
+                }
+            `;
+
+            const fragmentShaderSource = `
+                precision mediump float;
+                uniform vec2 resolution;
+                uniform float time;
+
+                vec3 palette(float t) {
+                    vec3 a = vec3(0.23, 0.51, 0.96);
+                    vec3 b = vec3(0.0, 0.83, 1.0);
+                    vec3 c = vec3(0.38, 0.40, 0.94);
+                    return a + b * cos(6.28318 * (c * t + vec3(0.0, 0.33, 0.67)));
+                }
+
+                void main() {
+                    vec2 uv = (gl_FragCoord.xy * 2.0 - resolution.xy) / min(resolution.x, resolution.y);
+                    vec2 uv0 = uv;
+                    vec3 finalColor = vec3(0.0);
+
+                    for (float i = 0.0; i < 2.0; i++) {
+                        uv = fract(uv * 1.4) - 0.5;
+                        float d = length(uv) * exp(-length(uv0));
+                        vec3 col = palette(length(uv0) + i * 0.3 + time * 0.07);
+                        d = sin(d * 9.0 + time * 0.3) / 9.0;
+                        d = abs(d);
+                        d = pow(0.015 / d, 1.1);
+                        finalColor += col * d * 0.5;
+                    }
+
+                    gl_FragColor = vec4(finalColor, 1.0);
+                }
+            `;
+
+            function createShader(gl, type, source) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                return shader;
+            }
+
+            const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+            const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+            const program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+            gl.useProgram(program);
+
+            const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
+            const buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+            const position = gl.getAttribLocation(program, 'position');
+            gl.enableVertexAttribArray(position);
+            gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+
+            const resolutionUniform = gl.getUniformLocation(program, 'resolution');
+            const timeUniform = gl.getUniformLocation(program, 'time');
+
+            let startTime = Date.now();
+
+            function render() {
+                const time = (Date.now() - startTime) * 0.001;
+                gl.uniform2f(resolutionUniform, canvas.width, canvas.height);
+                gl.uniform1f(timeUniform, time);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                requestAnimationFrame(render);
+            }
+
+            render();
+
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                gl.viewport(0, 0, canvas.width, canvas.height);
+            });
+        }
+
+        // Load whale data
+        const whales = [
+            { address: '7nY7H...3xK9', balance: '2.5M', change: 5.2, time: '2m ago' },
+            { address: '3xK9P...9mQ2', balance: '1.8M', change: -2.1, time: '5m ago' },
+            { address: '9mQ2R...5vL8', balance: '1.2M', change: 12.5, time: '12m ago' },
+            { address: '5vL8N...2pJ4', balance: '950K', change: -0.8, time: '15m ago' },
+            { address: '2pJ4W...7nY7', balance: '820K', change: 3.4, time: '22m ago' },
+        ];
+
+        setTimeout(() => {
+            const list = document.getElementById('whale-list');
+            list.innerHTML = whales.map((whale, i) => `
+                <div class="whale-row" style="animation-delay: ${i * 100}ms">
+                    <div class="rank">${i + 1}</div>
+                    <div class="whale-address">${whale.address}</div>
+                    <div class="whale-balance">$${whale.balance}</div>
+                    <div class="whale-change ${whale.change > 0 ? 'positive' : 'negative'}">${whale.change > 0 ? '+' : ''}${whale.change}%</div>
+                    <div class="whale-time">${whale.time}</div>
+                </div>
+            `).join('');
+        }, 1500);
+    </script>
+</body>
+</html>
