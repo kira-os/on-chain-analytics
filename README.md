@@ -1,24 +1,50 @@
-# On-Chain Analytics Tool
+# On-Chain Analytics
 
-Real-time Solana token holder analysis, whale tracking, and smart money flows.
+Solana token holder analysis, whale tracking, and smart money flows.
 
-## Features
+## 🚀 Features
 
-- **Token Holder Analysis**: Track holder concentration and movements
-- **Whale Tracking**: Monitor large wallet activity
-- **Smart Money Flows**: Identify profitable trading patterns
-- **Top Trader Leaderboard**: See who's making the best trades
-- **Token Health Score**: Risk assessment based on on-chain metrics
+- **Whale Tracking**: Monitor large wallet movements
+- **Smart Money Analysis**: Identify profitable traders
+- **Performance Leaderboard**: Top traders ranked by profit
+- **REST API**: Easy integration with dashboards
 
-## Data Sources
+## 🛠️ Tech Stack
 
-- Helius API for enhanced transaction data
-- SolanaFM for historical analysis
-- Custom RPC for real-time monitoring
+- TypeScript
+- Express.js API
+- Solana Web3.js
+- Helius SDK
 
-## Getting Started
+## 📡 API Endpoints
+
+```
+GET /api/whales/:tokenMint       - Get whale wallets for token
+GET /api/wallet/:address/activity - Get wallet transaction history
+GET /api/wallet/:address/performance - Analyze trading performance
+GET /api/leaderboard              - Get top performing wallets
+```
+
+## 🔧 Development
 
 ```bash
 npm install
 npm run dev
 ```
+
+API runs on http://localhost:3002
+
+## 🌐 Deployment
+
+```bash
+npm run build
+npm start
+```
+
+## 🔒 Security
+
+Pre-commit hooks active. No secrets committed.
+
+## 📄 License
+
+MIT
