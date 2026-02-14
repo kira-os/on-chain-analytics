@@ -4,6 +4,9 @@
   "description": "Real-time Solana token holder analysis, whale tracking, and smart money flows.",
   "main": "index.js",
   "scripts": {
+    "dev": "ts-node src/index.js",
+    "start": "node dist/index.js",
+    "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -16,5 +19,9 @@
     "express": "^5.2.1",
     "helius-sdk": "^2.1.0",
     "react-chartjs-2": "^5.3.1"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
   }
 }

@@ -1,4 +1,4 @@
-import { WhaleTracker } from '../lib/whale-tracker';
+import { WhaleTracker } from './whale-tracker';
 
 export class SmartMoneyAnalyzer {
   private whaleTracker: WhaleTracker;
